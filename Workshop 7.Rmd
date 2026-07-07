@@ -1,0 +1,17 @@
+---
+title: "Workshop 7"
+output: html_document
+author: "Aiden Bennett"
+date: "2026-07-07"
+---
+
+### --- Workshop 07 - Introduction ---
+This workshop is an introduction to the remote server fucntionality of RStudio. It is also the first time I have used the unix command program. WHile no assessed material is contained in this workshop, I still felt that it was important to include my thoughts and some of the material we were shown so I could come back to it in the future.
+
+## -- The Web Interface --
+While the web version and local desktop version of R and RStudio are functionally the same, there are a couple of key differences. The web version uses a remote server to store, compute and download large amounts of information, making it very useful for when you want to work with a large amount of data or there are many people that need to use the same programs at once.
+
+This is where the work is all being done for this module, and will be done almost entirely in the terminal with unix, as it can interpret unix commands.
+
+## -- Unix --
+Unix is an operating system from the 1960s, and while it many not be well know, one of its branches ended up as the Linux program. It stores files in a tree format, which requires very specific calls to track the files and requires you to know where in the chain you are. Each node is seperated by a root, typically /. To find where you are in the tree, the print working directory (pwd) command 
