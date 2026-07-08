@@ -1,0 +1,48 @@
+---
+title: "Workshop 2"
+author: "Aiden Bennett"
+date: "2026-07-08"
+output: html_document
+---
+
+### --- Introduction - Workshop 2 ---
+This is the first real time working with genetic data, and 
+
+### -- Redbean Assembly --
+Firstly, the redbean assembly program needs to be loaded, with its own directory using mkdir
+
+This command was run to load a small subset of the data - 
+'cat /pvol/data/amtp4/*_[012].fastq > amtp4.fastq', and run using this command 
+'wtdbg2 -x ont -g 5m -t 4 -i amtp4.fastq -fo amtp4'
+'wtpoa-cns -t 4 -i amtp4.ctg.lay.gz -fo amtp4.ctg.fa'
+It took around 2 minutes to fully assemble
+
+I then reran the assembly using this command sequence, with a better coverage depth
+cat /pvol/data/amtp4/*.fastq > amtp4_20x.fastq
+wtdbg2 -x ont -g 5m -t 4 -i amtp4_20x.fastq -fo amtp4_20x
+wtpoa-cns -t 4 -i amtp4_20x.ctg.lay.gz -fo amtp4_20x.ctg.fa
+This version took around 13 minutes to fully assemble, showing the sheer amount of data and computing power that is required for large-scale genomics work
+
+### -- Flye Assembly --
+Flye is an alternative to redbean, it is a slightly slower but also more mature program.
+Making and moving into the flye directory is the same as with the redbean one above, and helps to keep the programs separate
+The data from redbean is linked to this directory using the commands below:
+ln -s ../redbean/amtp4.fastq .
+ln -s ../redbean/amtp4_20x.fastq .
+
+To run the flye program, we need shell scripts, that will hold the slurm script we will run in the program. 2 scripts were made, one for the default and one for the 20x coverage versions that output an assembly file. We use the sbatch run_flye_small.sh to add the file to the queue, and the server will run it in the background for us. We can use squeue to track the position of our file in the queue, and this command (tail -f slurm-XXX.out) lets us track the progress of the file as it is being produced.
+
+We want the assmembly_graph.gfa files produced, which we will add to a program called Bandage that will let us view them.
+
+### -- Bandage --
+This program takes the outputs from Flye, and turns it into visual chromosomes that we can see. When loading the files, we see a vast difference in the size and structure of the chromosomes between the normal and 20x, which I will include below. This file is great if you want to take an in-depth look at your outputs and connectivity/biologically distinct regions.
+
+### -- QUAST --
+As with before, we start with making a new directory for QUAST. QUAST is a program that checks the quality and accuracy of our assembly, in this case we are going to compare our outputs with a provided reference.
+
+We also want separate directories for flye and redbean within the one for quast to store the outputs. First, check the contig sizes of the flye assembly and extract the two largest with samtools. Do the same with the redbean files. Once that is done we link them to the original reads and with the reference assembly.
+
+After all of that is done we run this code 'quast -o quast_vibrio redbean_asm/vibrio.fasta flye_asm/vibrio.fasta -L -t 4 --circos --glimmer -r vibrio/vibrio.fna --features  vibrio/vibrio.gff --nanopore amtp4_20x.fastq' to initate the quast program. It may take a couple minutes. Once this is finished, we download the quast_vibrio file from the quast directory, which will have the main report about our assembly and a circos plot, which will also be included below.
+
+With that done, we can move on to the next workshop which covers the more advanced metagenome assembly.
+
