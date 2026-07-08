@@ -14,4 +14,16 @@ While the web version and local desktop version of R and RStudio are functionall
 This is where the work is all being done for this module, and will be done almost entirely in the terminal with unix, as it can interpret unix commands.
 
 ## -- Unix --
-Unix is an operating system from the 1960s, and while it many not be well know, one of its branches ended up as the Linux program. It stores files in a tree format, which requires very specific calls to track the files and requires you to know where in the chain you are. Each node is seperated by a root, typically /. To find where you are in the tree, the print working directory (pwd) command 
+Unix is an operating system from the 1960s, and while it many not be well know, one of its branches ended up as the Linux program. It stores files in a tree format, which requires very specific calls to track the files and requires you to know where in the chain you are. Each node is separated by a root, typically /. To find where you are in the tree, the print working directory (pwd) command. When I used the command in showed me /home/jd146857/MarineGenomics, the name of the project/repository I am working in.
+
+Most unix commands have 3 components, the command name, flags/modifiers, and the arguments/input files. Examples are the -l flag for long format, and the -r flag for reverse sort, which can also be combined into -lr to do both at once.
+
+The mkdir command will make a new directory, which is named in the format mkdir directory_name, no spaces are allowed. Then the change directory, cd, command lets you navigate between any directories/projects you have made.
+
+The cat command is used to inspect the contents of a file, but if the file is too big to see at at once, you can load just a few lines with head, which will by default display the first 10 lines but can be changed by using head -X where X is the number of lines you want to see.
+
+grep is used to search out specific sequences within a file, you name the sequence you are looking for and it will return the amino acid sequence in the file. A number of useful headers are also available to combine with this command, like finding the line number (-n), ignore case (-i), matching whole words in the file (-w), or to report all of the files that contain the named sequence(-c)
+
+### -- Sequencing Files --
+FASTA and FASTQ are the typical formats for sequencing data, where FASTA is mainly a reference format while FASTQ is better for raw reads and includes quality scores for the bases.
+
