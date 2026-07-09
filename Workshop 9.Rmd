@@ -1,0 +1,127 @@
+---
+title: "Workshop 3"
+author: "Aiden Bennett"
+date: "2026-07-08"
+output: html_document
+---
+
+### --- Introduction - Workshop 3 ---
+This is the third workshop for the Marine Genomics module, and will cover more complex metagenome assembly. It follows a similar structure to the previous workshops.
+
+### -- Step 1 - Examine Reads -- 
+We start as we did before by making new directories for our raw data, then make a symbolic link to the raw data file contained within.
+Run this code 'cat raw_data/raw_reads.fastq.gz | head -n 40000 | bioawk -c fastx '{print $name,length($seq)}' > read_lengths.txt' to read the length distribution. It will produde a read_lengths text file that we will need for the next steps.
+
+```{r message=FALSE, warning=FALSE}
+#This will generate a graph from the new file, showing a histogram of the read lengths in the data set
+library(tidyverse)
+
+rl_data <- read_tsv("read_lengths.txt",col_names = c("id","length"), show_col_types = FALSE)
+
+ggplot(rl_data, aes(x=length/1000)) + 
+  geom_histogram(binwidth = 2) +
+  xlab("Read Length Kb") + ylab("Number of Reads")
+```
+
+The plot shows that the majority fall between 1 and 50kb in length, so we will use the N50 statistic to catagorize them. 
+The steps are as follows:
+Step 1: Rank all reads from longest to shortest.
+Step 2: Create a new column with the cumulative sum of read lengths (starting from longest read).
+Step 3: Find the read at which the cumulative sum surpasses 50% of the total read volume (ie total sum of all read lengths).
+
+```{r message=FALSE, warning=FALSE}
+# We will complete the steps with this code
+total_len <- sum(rl_data$length)
+
+rl_data %>% 
+  arrange(desc(length)) %>% 
+  mutate(cumsum = cumsum(length)) %>% 
+  filter(cumsum>total_len/2) %>% 
+  head(n=1)
+# The output shows the N50 is around 22kb, but we will expect the N50 of the assembly to be much larger.
+```
+
+### -- Step 2 - Assembly --
+For assembly we will be using flye, like we did in Workshop 2. Make a new flye directory and a new shell script in the directory with this code inside of it.
+'#!/bin/bash
+#SBATCH --time=360
+#SBATCH --ntasks=8 --mem=4gb
+   
+echo "Starting flye in $(pwd) at $(date)"
+   
+flye --nano-hq ../raw_data/raw_reads.fastq.gz --threads 8 --out-dir mock --meta
+   
+echo "Finished flye in $(pwd) at $(date)"'
+Then run it with the sbatch command and follow its progress with tail. It could take up to 20 minutes to complete, depending on the traffic volume on the remote server.
+While that is working, I took the time to do the calculations for the chromosome and GC content in the reference, which we will compare to the results from flye. The results of flye will also be put back into bandage to see their structure.
+
+Make a new text file, named gc.awk and save it to the project directory.
+ls /pvol/data/mg/refs/*.fna shows a list of the reference genomes.
+'cat /pvol/data/mg/refs/*.fna | bioawk -c fastx -f gc.awk' then combines them and sends the output to the bioawk program.
+
+### -- Step 3 - Basic Assembly QC --
+We will repeat the awk process with the flye output. We will make a new assembly_check directory and swap into it, then use the gc.awk script to run 'cat ../mock/assembly.fasta | bioawk -c fastx -f ../gc.awk', and then 'cat ../mock/assembly.fasta | bioawk -c fastx -f ../gc.awk > assembly.gc.tsv' to send the outputs to a file called assembly.gc.tsv
+
+Now that we have the outputs, we will join them together in plots using conventional R code.
+```{r message=FALSE, warning=FALSE}
+# Create data frames from the files
+gc <- read_tsv("flye/assembly_check/assembly.gc.tsv",col_names = c("#seq_name","length","GC"))
+info <- read_tsv("flye/mock/assembly_info.txt") 
+
+# Combine them together
+gc_info <- info %>% 
+  left_join(gc)
+
+# Histogram by GC content
+gc_info %>% 
+  ggplot(aes(x=GC)) + geom_histogram() + ylab("Number of contigs")
+
+# GC vs coverage, remove unrealistic data points
+gc_info %>% 
+  filter(GC<0.8) %>% 
+  filter(cov.<25) %>% 
+  ggplot(aes(x=GC,y=cov.)) + geom_point(aes(size=length)) + ylab("Coverage depth")
+
+# Same as before but only with contigs with more than 25x coverage and less than 80% GC coverage
+library(ggrepel)
+gc_info %>% 
+  filter(GC<0.8) %>% 
+  filter(cov.<25) %>% 
+  ggplot(aes(x=GC,y=cov.)) + geom_point(aes(size=length)) + geom_label_repel(aes(label=`#seq_name`))
+
+```
+
+Now that we are done with the plots, we will return to the workshop3_metasm directory, then run 'cat /pvol/data/mg/refs/*.fna | bioawk -c fastx -f gc.awk | awk '{sum+=$2}END{print sum}' to find the total length of the reference, which is around 24MB.
+
+### -- Step 4 - Binning --
+Binning tools will separate different organisms genomes, making 'bins' that will contain multiple distinct sequences from the same organism. We will be using contig binning, using the metabat2 program. We will make another new directory, this time metabat, and work from within it for now. Using cat we create a depths text file, then make a new version of the assembly fil in the same order as the new text file.
+
+'cat ../flye/mock/assembly_info.txt  | grep -v '#' | awk '{OFS="\t";print $1,$3}' > depths.txt', then 'cat depths.txt | awk '{print $1}' | xargs samtools faidx ../flye/mock/assembly.fasta > assembly_ordered.fasta'.
+
+Once both of those are done, we can run metabat as follows 'metabat2 -i assembly_ordered.fasta -a depths.txt --cvExt -o bins/metabat --seed 5'. We will now have our bins, and can inspect them with 'grep '>' bins/*'. Metabat grouped the contigs into 5 bins
+
+### -- Step 5 - Check bin quality with checkM --
+To check our work so far, use the checkM program to assess the bin quality. We need to make bins so that the sequences within have the entire sequence of the organism, and only contain organisms from the same organisms with no contamination.
+
+As with before we make a new directory, checkm, and copy the contents of metabat into it with 
+mkdir bins 
+cp ../metabat/bins/metabat.*.fa bins/
+
+Another slurm script is needed, as checkM is very resource intensive
+#!/bin/bash
+#SBATCH --time=60
+#SBATCH --ntasks=4 --mem=40gb
+
+echo "Starting checkm in $(pwd) at $(date)"
+
+shopt -s expand_aliases
+alias checkm='apptainer run -B /pvol/:/pvol /pvol/data/sif/checkm.sif checkm'
+
+checkm lineage_wf bins out -t 4 -x fa -f checkm_results.txt
+
+echo "Finished checkm in $(pwd) at $(date)"
+This script is then run with sbatch and we will monitor its progess as it runs. Once it is finished we will have a file called checkm_results.txt which has a summary of the results for each of our bins.
+
+That is the end of this workshop, as we move on to the final, assessed workshop of this module.
+
+
