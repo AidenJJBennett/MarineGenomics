@@ -1,0 +1,25 @@
+---
+title: "01_assembly"
+author: "Aiden Bennett"
+date: "2026-07-14"
+output: html_document
+---
+### --- Step 1 - Assembly ---
+Each of the three markdowns will document the steps for setting up the final assessment for this module. This file contains the information on the assembly of the dataset that will be used.
+
+Start with a making a flye directory, then change into it and use 'ln -s /pvol/data/metagenome_assembly/bbd_0.1.fastq.gz' to link it with the data from the bbd read data that was already in the server
+
+Once done, make a shell script named run_flye_bbd and add the following
+#!/bin/bash
+#SBATCH --time=720
+#SBATCH --ntasks=12 --mem=10gb
+
+echo "Starting flye bbd in $(pwd) at $(date)"
+
+flye --nano-hq ../raw_data/bbd_0.1.fastq.gz --threads 12 --out-dir bbd --meta
+
+echo "Finished flye bbd in $(pwd) at $(date)"
+
+Run the script with sbatch run_flye_bbd.sh, and check with squeue to make sure it is processing. This will take a while, my run was over 3 hours but could be longer depending on server traffic. Once the assembly has run and you have the completed output, move on to step 2.
+
+

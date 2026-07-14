@@ -1,0 +1,20 @@
+---
+title: "03_checkm"
+author: "Aiden Bennett"
+date: "2026-07-14"
+output: html_document
+---
+
+### --- Step 3 - Check bin quality ---
+This is the last step for the assembly, using checkm on the metabat output to check accuracy.
+
+Once again, move to the main project repository, then make and move into one for checkm.
+
+Check the length of all of the contigs, using 'cat ../flye/bbd/assembly.fasta | bioawk -c fastx '{print length($seq),$name}' | sort -n' as the largest one will have been removed and we will need it.
+
+Find the largest bin, and rename contig_XX from below with the name of the largest bin and run it in the terminal. Mine was contig_113
+mkdir bins_bbd
+cp ../metabat/bins_bbd/*.fa bins_bbd/
+samtools faidx ../flye/bbd/assembly.fasta contig_113 > bins_bbd/contig_113.fa
+
+Now make a new slurm script with the following and run it with sbatch run_checkm_bbd.sh.
