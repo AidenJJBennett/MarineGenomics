@@ -14,16 +14,17 @@ Move back into checkm directory, then check the summarized output file named che
 
 ### -- Perform taxonomic classification --
 Make a gtdbtk file in the top level of the project and move into it. Once done, also make a genomes file within the gtdbtk directory.
-Now we need to make a loop using a command chain to copy the bins into the genomes folder.
-
-Start loop
+Now we need to make a loop using a command chain to copy the bins into the genomes folder:
+```
+# Start loop
 while read bin;do echo $bin;done < ../checkm/bbd_topbins.txt
 
-Print name only
+# Print name only
 while read bin;do echo "../metabat/bins_bbd/${bin}.fa";done < ../checkm/bbd_topbins.txt
 
-Perform copy
+# Perform copy
 while read bin;do cp "../metabat/bins_bbd/${bin}.fa" genomes;done < ../checkm/bbd_topbins.txt
+```
 
 Check the outputs with ls genomes, with one file for each bin.
 
@@ -48,14 +49,14 @@ Run with sbatch and monitor with squeue as before, it may take a minute.
 ### -- Find and annotate genes --
 Make a new directory at the top level and name it prokka.
 Find the top bin, head -n 1 ../checkm/bbd_topbins.txt, and substitute its name into the code below. Mine was metabat.73.
-
+```
 bin=metabat.73
 prokka --outdir $bin --prefix $bin  ../metabat/bins_bbd/${bin}.fa
+```
 
 It will only take a couple minutes, and end up with an output named metabat.73. List its contents with ls metabat.5
 
-This was all only for one of the metagenomes, now we need to do all of them. Use a slurm script in the prokka directory named run_prokka.sh with the following and run it
-
+This was all only for one of the metagenomes, now we need to do all of them. Use a slurm script in the prokka directory named run_prokka.sh with the following and run it:
 ```
 #!/bin/bash
 #SBATCH --time=60
@@ -77,8 +78,10 @@ echo "Finished prokka in $(pwd) at $(date)"
 For this step, we needa tool called minpath that will take the info from the prokka output and infer the presence of broader biological pathways. This process will run on each bin and examine the genes to discern their function but only follows one parsimony pathway and there are other options for this step.
 
 Make a minpath directory and move into it from the top level. 
-Use the prokka output .tsv file for one of the bins to check it is working correctly.
+Use the prokka output .tsv file for one of the bins to check it is working correctly:
+```
 'head ../prokka/metabat.73/metabat.73.tsv'. 
+```
 It will display 9 genes, and likely are missing their annotations, labelled as hypothetical proteins or will have the gene name, EC number, a COG id and a protein name. These are the ones we want to keep.
 
 ```
@@ -124,8 +127,10 @@ a) 3 bins contain at least a partial pathway, 45, 50 and 73.
 b) The whole pathway is contained within 73, as it has all 4 gene families within it.
 
 Cross-reference with the output of other bins that contain the pathway:
+```
 grep 'metabat.45' ../gtdbtk/out/gtdbtk.bac120.summary.tsv
 grep 'metabat.50' ../gtdbtk/out/gtdbtk.bac120.summary.tsv
+```
 
 Do the same for the second pathway, superpathway of tetrathionate reduction, with code PWY-5360
 
