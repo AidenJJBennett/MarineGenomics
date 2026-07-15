@@ -110,4 +110,4 @@ Do the same for the second pathway, superpathway of tetrathionate reduction, wit
 
 Question 4.2
 a) Only bin 74 contains any parts of the pathway, with 1 of 3 families.
-b) When examining the output, it mentions Salmonella typhimurium, and cross referenced with the metabat output and online sources it shows the pathway is from the Enterobacteriaceae family
+b) When examining the output, it mentions Salmonella typhimurium, and cross referenced with the metabat output and online sources it shows the pathway is from Enterobacteriaceae, or more simply from a Bacteria family
