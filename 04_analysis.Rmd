@@ -27,7 +27,8 @@ while read bin;do cp "../metabat/bins_bbd/${bin}.fa" genomes;done < ../checkm/bb
 
 Check the outputs with ls genomes, with one file for each bin.
 
-Now a new shell script will be needed in gtdbtk, named run_gtdbtk.sh
+Now a new shell script will be needed in gtdbtk, named run_gtdbtk.sh:
+```
 #!/bin/bash
 #SBATCH --time=60
 #SBATCH --ntasks=2 --mem=24gb
@@ -40,6 +41,8 @@ alias gtdbtk='apptainer run -B /pvol:/pvol,/pvol/data/mg/gtdbtkdata/release207_v
 gtdbtk classify_wf -x fa --cpus 2 --genome_dir genomes --out_dir out --skip_ani_screen
 
 echo "Finished gtdbtk in $(pwd) at $(date)"
+```
+
 Run with sbatch and monitor with squeue as before, it may take a minute.
 
 ### -- Find and annotate genes --
@@ -48,9 +51,12 @@ Find the top bin, head -n 1 ../checkm/bbd_topbins.txt, and substitute its name i
 
 bin=metabat.73
 prokka --outdir $bin --prefix $bin  ../metabat/bins_bbd/${bin}.fa
+
 It will only take a couple minutes, and end up with an output named metabat.73. List its contents with ls metabat.5
 
 This was all only for one of the metagenomes, now we need to do all of them. Use a slurm script in the prokka directory named run_prokka.sh with the following and run it
+
+```
 #!/bin/bash
 #SBATCH --time=60
 #SBATCH --ntasks=2 --mem=2gb
@@ -65,35 +71,50 @@ while read bin;do
 done < ../checkm/bbd_topbins.txt
 
 echo "Finished prokka in $(pwd) at $(date)"
+```
 
 ### -- Infer metabolic pathways --
 For this step, we needa tool called minpath that will take the info from the prokka output and infer the presence of broader biological pathways. This process will run on each bin and examine the genes to discern their function but only follows one parsimony pathway and there are other options for this step.
 
-Make a minpath directory and move into it from the top level. Use the prokka output .tsv file for one of the bins to check it is working correctly.
-'head ../prokka/metabat.73/metabat.73.tsv'. It will display 9 genes, and likely are missing their annotations, labelled as hypothetical proteins or will have the gene name, EC number, a COG id and a protein name. These are the ones we want to keep.
+Make a minpath directory and move into it from the top level. 
+Use the prokka output .tsv file for one of the bins to check it is working correctly.
+'head ../prokka/metabat.73/metabat.73.tsv'. 
+It will display 9 genes, and likely are missing their annotations, labelled as hypothetical proteins or will have the gene name, EC number, a COG id and a protein name. These are the ones we want to keep.
 
-At this stage on the ID and EC number are needed, columns 1 and 5, so run this to separate them out: head ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '{print $1,$5}'.
-Make sure the output is tab separated and the header is removed: head ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus'. 
-Use cat instead so that all of the genes are done at once: cat ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus'
-Send the outputs to their own file cat: ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus' > metabat.73.ec
-Now run minpath on that file: minpath -ec metabat.73.ec -report metabat.73.ec.report -details metabat.73.ec.details
-Look at the top of the output: head metabat.73.ec.report
+```
+# At this stage on the ID and EC number are needed, columns 1 and 5, so run this to separate them out
+head ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '{print $1,$5}'.
+# Make sure the output is tab separated and the header is removed
+head ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus'. 
+# Use cat instead so that all of the genes are done at once
+cat ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus'
+# Send the outputs to their own file
+cat: ../prokka/metabat.73/metabat.73.tsv | awk -F '\t' '$5{OFS="\t";print $1,$5}' | grep -v '^locus' > metabat.73.ec
+# Now run minpath on that file
+minpath -ec metabat.73.ec -report metabat.73.ec.report -details metabat.73.ec.details
+# Look at the top of the output
+head metabat.73.ec.report
+```
 
 The output has several critical lines to watch:
-PWY-XXXX is a pathway identifier in the metacyc database
-fam0 X tells how many gene families are involved in the pathway
-fam-found X tells how many gene families were found from the pathway in the genome
-name XXXX is the name of the pathway
+1) PWY-XXXX is a pathway identifier in the metacyc database
+2) fam0 X tells how many gene families are involved in the pathway
+3) fam-found X tells how many gene families were found from the pathway in the genome
+4) name XXXX is the name of the pathway
 
 Prokka should be done by now, so time to create minpath inputs for all of the bins:
+```
 while read bin;do 
   cat ../prokka/$bin/${bin}.tsv | awk -F '\t' '$5{printf("%s\t%s\n", $1,$5)}' | grep -v '^locus' > ${bin}.ec 
 done < ../checkm/bbd_topbins.txt
+```
 
 Now run minpath for each bin:
+```
 while read bin;do 
   minpath -ec ${bin}.ec -report ${bin}.ec.report -details ${bin}.ec.details
 done < ../checkm/bbd_topbins.txt
+```
 
 There will be A LOT of information in the outputs, so for simplicity only 2 pathways will be tracked here. The first is the photosynthesis light reactions, code PWY-101:
 grep 'PWY-101' *.ec.report
@@ -102,7 +123,7 @@ Question 4.1
 a) 3 bins contain at least a partial pathway, 45, 50 and 73. 
 b) The whole pathway is contained within 73, as it has all 4 gene families within it.
 
-Cross-reference with the output of other bins that contain the pathway
+Cross-reference with the output of other bins that contain the pathway:
 grep 'metabat.45' ../gtdbtk/out/gtdbtk.bac120.summary.tsv
 grep 'metabat.50' ../gtdbtk/out/gtdbtk.bac120.summary.tsv
 
