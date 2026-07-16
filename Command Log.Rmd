@@ -1,0 +1,88 @@
+### -- Assembly --
+Use flye to run slurm script
+```
+# Link to bbd data
+ln -s /pvol/data/metagenome_assembly/bbd_0.1.fastq.gz .
+
+# Run flye from slurm script
+flye --nano-hq ../raw_data/bbd_0.1.fastq.gz --threads 12 --out-dir bbd --meta
+```
+
+### -- Binning --
+Perform binning of output with metabat
+```
+# Extract depth information
+cat ../flye/bbd/assembly_info.txt  | grep -v '#' | awk '{OFS="\t";print $1,$3}' > depths_bbd.txt
+
+# Reorder contigs based on depth
+cat depths_bbd.txt | awk '{print $1}' | xargs samtools faidx ../flye/bbd/assembly.fasta > assembly_bbd_ordered.fasta
+
+# Run metabat
+metabat2 -i assembly_bbd_ordered.fasta -a depths_bbd.txt --cvExt -o bins_bbd/metabat --seed 5
+```
+
+### -- Check bin quality --
+Run checkm on metabat bins
+```
+# Find longest contig and replace name below
+cat ../flye/bbd/assembly.fasta | bioawk -c fastx '{print length($seq),$name}' | sort -n
+cp ../metabat/bins_bbd/*.fa bins_bbd/
+samtools faidx ../flye/bbd/assembly.fasta contig_XX > bins_bbd/contig_XX.fa
+
+# Run checkm with slurm script
+checkm lineage_wf bins_bbd out -t 4 -x fa -f checkm_results_bbd.txt
+```
+
+### -- Assess checkm results --
+Only use results from quality bins
+```
+# Take bin IDs of all above 15% completeness
+cat checkm_results_bbd.txt | awk '$13>15{print $1}' > bbd_topbins.txt
+```
+
+### -- GTDBTK classification --
+Copy all topbins to new folder
+```
+# Create iterating loop
+while read bin;do cp "../metabat/bins_bbd/${bin}.fa" genomes;done < ../checkm/bbd_topbins.txt
+
+# Run gtdbtk with slurm script
+gtdbtk classify_wf -x fa --cpus 2 --genome_dir genomes --out_dir out --skip_ani_screen
+```
+
+### -- Annotate genes in prokka
+Prokka will identify genes within the genomes
+```
+# Looping slurm script to interate all bins
+while read bin;do 
+  prokka --outdir $bin --prefix $bin "../metabat/bins_bbd/${bin}.fa";
+done < ../checkm/bbd_topbins.txt
+```
+
+### -- Infer metabolic pathways --
+Take functional info of genes to infer pathways present in the bins
+```
+# Prepare minpath outputs for all bins
+while read bin;do 
+  cat ../prokka/$bin/${bin}.tsv | awk -F '\t' '$5{printf("%s\t%s\n", $1,$5)}' | grep -v '^locus' > ${bin}.ec 
+done < ../checkm/bbd_topbins.txt
+
+# Run minpath
+while read bin;do 
+  minpath -ec ${bin}.ec -report ${bin}.ec.report -details ${bin}.ec.details
+done < ../checkm/bbd_topbins.txt
+```
+
+### -- Search for relevant pathways ---
+Search all bins to find presence of specificed pathways
+```
+# Photosynthesis light reactions
+grep 'PWY-101' *.ec.report
+
+# Superpathway of tetrathionate reduction
+grep 'PWY-5360' *.ec.report
+```
+
+
+
+
